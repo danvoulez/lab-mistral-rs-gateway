@@ -383,10 +383,23 @@ function isLoopbackRequest(req) {
 }
 
 // Client identity for cost attribution ("joga o custo no cliente"):
-// Cloudflare Access service-token id when via tunnel, named bearer token from
-// runtime/clients.json when on LAN, hashed token otherwise, x-lab-client
-// header or "local" for trusted loopback callers.
+// tunnel traffic carries the Access-issued JWT (CF-Access-Jwt-Assertion) —
+// the edge consumes the CF-Access-Client-* headers, so the JWT's service
+// token identity is what reaches us; only trusted from loopback origins.
+// LAN uses named bearer tokens (runtime/clients.json) or a token hash;
+// plain loopback uses the x-lab-client header or "local".
 function identifyClient(req) {
+  if (isLoopbackRequest(req)) {
+    const jwt = req.headers['cf-access-jwt-assertion'];
+    if (jwt) {
+      try {
+        const payload = JSON.parse(Buffer.from(String(jwt).split('.')[1], 'base64url').toString('utf8'));
+        if (payload.common_name) return `access:${payload.common_name}`;
+        if (payload.service_token_id) return `access:${String(payload.service_token_id).slice(0, 8)}`;
+      } catch { /* fall through to generic loopback identity */ }
+    }
+    return req.headers['x-lab-client'] || 'local';
+  }
   const accessId = req.headers['cf-access-client-id'];
   if (accessId) return `access:${String(accessId).replace(/\.access$/, '')}`;
   const auth = req.headers.authorization || '';

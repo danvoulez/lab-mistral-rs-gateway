@@ -72,9 +72,11 @@ Units:
   Cloud: upstream wall time (providers expose tokens, not GPU time).
 - `tokens_total` — the compute unit common to both worlds.
 
-Client identity: `CF-Access-Client-Id` (tunnel), named bearer from
-`runtime/clients.json` (LAN, chmod 600), `X-Lab-Client` header or `local`
-(loopback). Per-client aggregates:
+Client identity: Access JWT `common_name`/service-token id (tunnel — the
+edge consumes `CF-Access-Client-*` headers, so identity arrives via
+`CF-Access-Jwt-Assertion`), named bearer from `runtime/clients.json` (LAN,
+chmod 600), `X-Lab-Client` header or `local` (loopback). Per-client
+aggregates:
 
 ```bash
 curl -H "Authorization: Bearer <key>" http://192.168.0.200:8787/ops/costs
@@ -256,10 +258,13 @@ changelog 2026-08-06): it must contain `@executable_path`, not the deleted
 backup at `golden-bridge/bin/llama-server.bak-20260806` on LAB 512.
 
 If the gateway answers on Wi-Fi but not via
-`https://inference.minilab.work`, check the tunnel `lab8gb` ingress
-(`~/.cloudflared/config.yml`) and the Access app — DNS CNAME
-`inference.minilab.work → 2b7bc384….cfargotunnel.com` must exist and stay
-proxied.
+`https://inference.minilab.work`, check the tunnel `lab8gb` ingress — note
+the live config is **`/etc/cloudflared/config.yml`** (system daemon
+`work.minilab.cloudflared`; the `~/.cloudflared/config.yml` copy is legacy)
+— and the Access app: DNS CNAME `inference.minilab.work →
+2b7bc384….cfargotunnel.com` must exist and stay proxied, and the app policy
+must use action **Service Auth** (`non_identity` in the API) — with `allow`,
+Access validates the token but still redirects to the IdP login (302).
 
 ## Changelog
 
