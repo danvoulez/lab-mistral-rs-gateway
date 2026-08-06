@@ -1,0 +1,88 @@
+{
+  "bridge": {
+    "name": "golden-bridge",
+    "lab512": {
+      "host": "LAB-512",
+      "ip": "10.88.0.10",
+      "role": "inference"
+    },
+    "lab8gb": {
+      "host": "lab-8gb",
+      "ip": "10.88.0.9",
+      "role": "gateway"
+    },
+    "protectedLaunchLabels": [
+      "com.project-manhattan.agent"
+    ],
+    "deletedLaunchLabels": [
+      "com.minilab.actgraph",
+      "com.minilab.actgraph-mcp-http",
+      "actions.runner.danvoulez-ActGraph.lab-8gb-capital"
+    ],
+    "warningLaunchLabels": [
+      "ai.openclaw.gateway",
+      "com.minilab.host-runtime"
+    ]
+  },
+  "gateway": {
+    "host": "10.88.0.9",
+    "port": 8787,
+    "publicBaseUrl": "http://10.88.0.9:8787",
+    "apiKey": "required-from-runtime-token",
+    "apiKeyFile": "runtime/gateway-token",
+    "systemMode": "replace",
+    "systemPolicyFile": "config/system-policy.txt",
+    "requestTimeoutMs": 600000,
+    "maxBodyBytes": 1048576
+  },
+  "mistral": {
+    "command": "mistralrs",
+    "host": "10.88.0.10",
+    "port": 1234,
+    "startupTimeoutMs": 900000,
+    "shutdownTimeoutMs": 15000,
+    "supervise": false,
+    "extraArgs": [
+      "--prefix-cache-n",
+      "0",
+      "--max-seqs",
+      "1",
+      "--max-batch-size",
+      "1",
+      "--max-seq-len",
+      "4096"
+    ]
+  },
+  "defaultModel": "metabolism-qwen2.5-3b",
+  "models": [
+    {
+      "id": "metabolism-qwen2.5-3b",
+      "modelId": "default",
+      "kind": "text",
+      "role": "metabolism",
+      "host": "LAB-8GB",
+      "upstream": {
+        "host": "127.0.0.1",
+        "port": 8392
+      },
+      "quantization": "Q4_K_M",
+      "maxOutputTokens": 512,
+      "notes": "Small high-frequency metabolism model running locally on LAB 8GB."
+    },
+    {
+      "id": "mistral-nemo-q4",
+      "modelId": "default",
+      "kind": "text",
+      "role": "inference-512",
+      "host": "LAB-512",
+      "upstream": {
+        "host": "10.88.0.10",
+        "port": 1234
+      },
+      "quantization": "Q4_K_M",
+      "args": ["auto", "-m", "/Users/danvoulez/models", "--format", "gguf", "-f", "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"],
+      "maxOutputTokens": 1024,
+      "notes": "Large reader model served by LAB 512 over the point-to-point Ethernet cable."
+    }
+  ]
+}

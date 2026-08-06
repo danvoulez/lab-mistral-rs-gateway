@@ -1,0 +1,24 @@
+{
+  "name": "lab-mistral-rs-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stable LAB 512 to LAB 8GB mistral.rs gateway with exclusive model loading.",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "doctor": "node scripts/doctor.js",
+    "bridge:status": "node scripts/bridge-status.js",
+    "bridge:watchdog": "node scripts/bridge-watchdog.js",
+    "bridge:manhattan": "node scripts/manhattan-bridge.js",
+    "preflight": "node scripts/preflight.js",
+    "package:bridge": "bash scripts/package-bridge.sh",
+    "select": "node scripts/select-model.js",
+    "smoke": "node scripts/smoke.js",
+    "test": "node --test"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

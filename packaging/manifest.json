@@ -1,0 +1,42 @@
+{
+  "name": "golden-bridge",
+  "version": "0.1.0",
+  "builtFor": {
+    "lab512": {
+      "host": "LAB-512",
+      "ip": "10.88.0.10",
+      "role": "inference",
+      "service": "com.minilab.mistralrs-serve",
+      "requires": [
+        "/Users/danvoulez/.cargo/bin/mistralrs",
+        "/Users/danvoulez/models/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"
+      ]
+    },
+    "lab8gb": {
+      "host": "lab-8gb",
+      "ip": "10.88.0.9",
+      "role": "gateway",
+      "services": [
+        "local.lab-mistral-gateway",
+        "local.lab-bridge-watchdog"
+      ]
+    }
+  },
+  "entrypoints": {
+    "gateway": "src/server.js",
+    "watchdog": "scripts/bridge-watchdog.js",
+    "status": "scripts/bridge-status.js",
+    "manhattanBridgeSidecar": "scripts/manhattan-bridge.js"
+  },
+  "installers": {
+    "lab512": "scripts/install-lab512.sh",
+    "lab8gb": "scripts/install-lab8gb.sh"
+  },
+  "docs": [
+    "docs/FOUNDER_GUIDE.md",
+    "docs/GOLDEN_BRIDGE.md",
+    "docs/MANHATTAN_MINI_CLI.md",
+    "docs/AUDIT.md",
+    "docs/OPERATIONS.md"
+  ]
+}

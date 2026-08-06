@@ -1,0 +1,165 @@
+{
+  "bridge": {
+    "name": "golden-bridge",
+    "lab512": {
+      "host": "LAB-512",
+      "ip": "10.88.0.10",
+      "role": "inference"
+    },
+    "lab8gb": {
+      "host": "lab-8gb",
+      "ip": "10.88.0.9",
+      "role": "gateway"
+    },
+    "protectedLaunchLabels": [
+      "com.project-manhattan.agent"
+    ],
+    "deletedLaunchLabels": [
+      "com.minilab.actgraph",
+      "com.minilab.actgraph-mcp-http",
+      "actions.runner.danvoulez-ActGraph.lab-8gb-capital"
+    ],
+    "warningLaunchLabels": [
+      "ai.openclaw.gateway",
+      "com.minilab.host-runtime"
+    ]
+  },
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 8787,
+    "publicBaseUrl": "http://192.168.0.200:8787",
+    "apiKey": "required-from-runtime-token",
+    "apiKeyFile": "runtime/gateway-token",
+    "systemMode": "replace",
+    "systemPolicyFile": "config/system-policy.txt",
+    "requestTimeoutMs": 600000,
+    "maxBodyBytes": 1048576
+  },
+  "mistral": {
+    "command": "mistralrs",
+    "host": "10.88.0.10",
+    "port": 1234,
+    "startupTimeoutMs": 900000,
+    "shutdownTimeoutMs": 15000,
+    "supervise": false,
+    "extraArgs": [
+      "--prefix-cache-n",
+      "0",
+      "--max-seqs",
+      "1",
+      "--max-batch-size",
+      "1",
+      "--max-seq-len",
+      "4096"
+    ]
+  },
+  "defaultModel": "qwen2.5-3b",
+  "models": [
+    {
+      "id": "qwen2.5-3b",
+      "modelId": "default",
+      "kind": "text",
+      "role": "metabolism",
+      "host": "LAB-8GB",
+      "upstream": {
+        "host": "127.0.0.1",
+        "port": 8392
+      },
+      "quantization": "Q4_K_M",
+      "maxOutputTokens": 512,
+      "notes": "Small high-frequency metabolism model running locally on LAB 8GB."
+    },
+    {
+      "id": "mistral-nemo-q4",
+      "modelId": "default",
+      "kind": "text",
+      "role": "inference-512",
+      "host": "LAB-512",
+      "upstream": {
+        "host": "10.88.0.10",
+        "port": 1234
+      },
+      "quantization": "Q4_K_M",
+      "args": [
+        "auto",
+        "-m",
+        "/Users/danvoulez/models",
+        "--format",
+        "gguf",
+        "-f",
+        "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf"
+      ],
+      "maxOutputTokens": 1024,
+      "notes": "Large reader model served by LAB 512 over the point-to-point Ethernet cable."
+    },
+    {
+      "id": "gpt-4.1-mini",
+      "modelId": "openai/gpt-4.1-mini",
+      "kind": "text",
+      "role": "cloud",
+      "host": "vercel-ai-gateway",
+      "upstream": {
+        "url": "https://ai-gateway.vercel.sh/v1",
+        "key": "vercel-ai-gateway"
+      },
+      "maxOutputTokens": 1024,
+      "notes": "OpenAI via Vercel AI Gateway. Custo por uso — nunca default."
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "modelId": "anthropic/claude-haiku-4.5",
+      "kind": "text",
+      "role": "cloud",
+      "host": "vercel-ai-gateway",
+      "upstream": {
+        "url": "https://ai-gateway.vercel.sh/v1",
+        "key": "vercel-ai-gateway"
+      },
+      "maxOutputTokens": 1024,
+      "notes": "Anthropic via Vercel AI Gateway. Custo por uso — nunca default."
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "modelId": "google/gemini-2.5-flash",
+      "kind": "text",
+      "role": "cloud",
+      "host": "vercel-ai-gateway",
+      "upstream": {
+        "url": "https://ai-gateway.vercel.sh/v1",
+        "key": "vercel-ai-gateway"
+      },
+      "maxOutputTokens": 1024,
+      "notes": "Google via Vercel AI Gateway. Custo por uso — nunca default."
+    }
+  ],
+  "prices": {
+    "_note": "USD por 1M tokens. Estimativas editáveis — alinhar com o billing da Vercel/Cloudflare. Locais = 0.",
+    "gpt-4.1-mini": {
+      "input": 0.4,
+      "output": 1.6
+    },
+    "claude-haiku-4.5": {
+      "input": 1.0,
+      "output": 5.0
+    },
+    "gemini-2.5-flash": {
+      "input": 0.3,
+      "output": 2.5
+    },
+    "qwen2.5-3b": {
+      "input": 0,
+      "output": 0
+    },
+    "mistral-nemo-q4": {
+      "input": 0,
+      "output": 0
+    }
+  },
+  "cloud": {
+    "url": "https://ai-gateway.vercel.sh/v1",
+    "key": "vercel-ai-gateway",
+    "host": "vercel-ai-gateway",
+    "catalogPassthrough": true,
+    "note": "Qualquer id 'provider/modelo' do catálogo Vercel (316 modelos) roteia direto, sem entrada em models[]. Ids inválidos são rejeitados pelo upstream. Custo: só os com preço em config.prices emitem cost_usd; tokens/compute sempre são logados."
+  }
+}

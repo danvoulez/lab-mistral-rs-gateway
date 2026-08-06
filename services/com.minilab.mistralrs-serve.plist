@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.minilab.mistralrs-serve</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/danvoulez/models</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/danvoulez/.cargo/bin/mistralrs</string>
+    <string>serve</string>
+    <string>--host</string>
+    <string>10.88.0.10</string>
+    <string>--port</string>
+    <string>1234</string>
+    <string>--prefix-cache-n</string>
+    <string>0</string>
+    <string>--max-seqs</string>
+    <string>1</string>
+    <string>--max-batch-size</string>
+    <string>1</string>
+    <string>--max-seq-len</string>
+    <string>4096</string>
+    <string>auto</string>
+    <string>-m</string>
+    <string>/Users/danvoulez/models</string>
+    <string>--format</string>
+    <string>gguf</string>
+    <string>-f</string>
+    <string>Mistral-Nemo-Instruct-2407-Q4_K_M.gguf</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/danvoulez</string>
+    <key>PATH</key>
+    <string>/Users/danvoulez/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/danvoulez/mistralrs-serve.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/danvoulez/mistralrs-serve.log</string>
+</dict>
+</plist>
