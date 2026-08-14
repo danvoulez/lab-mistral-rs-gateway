@@ -134,8 +134,8 @@
       "notes": "Google via Vercel AI Gateway. Custo por uso — nunca default."
     },
     {
-      "id": "cloudflare/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "modelId": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "id": "cloudflare/@cf/openai/gpt-oss-120b",
+      "modelId": "@cf/openai/gpt-oss-120b",
       "source": "cloudflare",
       "kind": "text",
       "role": "cloud",
@@ -150,7 +150,7 @@
         "response_format": true
       },
       "maxOutputTokens": 1024,
-      "notes": "Llama 3.3 70B via o AI Gateway golden-bridge. Nunca default e sem fallback."
+      "notes": "GPT-OSS 120B via o AI Gateway golden-bridge. Certificado por envelope vivo; nunca default e sem fallback."
     }
   ],
   "prices": {
@@ -175,9 +175,9 @@
       "input": 0,
       "output": 0
     },
-    "cloudflare/@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
-      "input": 0.293,
-      "output": 2.253
+    "cloudflare/@cf/openai/gpt-oss-120b": {
+      "input": 0.35,
+      "output": 0.75
     }
   },
   "cloudflare": {
