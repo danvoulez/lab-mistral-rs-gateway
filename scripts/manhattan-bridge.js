@@ -321,7 +321,7 @@ async function metricsPayload() {
 }
 
 function modelChair() {
-  const model = config.models.find((entry) => entry.id === config.defaultModel);
+  const model = config.models.find((entry) => entry.role === 'inference-512');
   const args = model?.args || [];
   const modelDir = valueAfter(args, '-m');
   const fileName = valueAfter(args, '-f');
@@ -330,7 +330,7 @@ function modelChair() {
 
   return {
     packaged: false,
-    gatewayModel: config.defaultModel,
+    gatewayModel: model?.id || null,
     upstreamModel: model?.modelId || null,
     quantization: model?.quantization || null,
     expectedModelFile: expectedFile,

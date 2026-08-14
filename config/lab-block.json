@@ -30,8 +30,6 @@
     "publicBaseUrl": "http://192.168.0.200:8787",
     "apiKey": "required-from-runtime-token",
     "apiKeyFile": "runtime/gateway-token",
-    "systemMode": "replace",
-    "systemPolicyFile": "config/system-policy.txt",
     "requestTimeoutMs": 600000,
     "maxBodyBytes": 1048576
   },
@@ -53,11 +51,11 @@
       "4096"
     ]
   },
-  "defaultModel": "qwen2.5-3b",
   "models": [
     {
-      "id": "qwen2.5-3b",
+      "id": "local/qwen2.5-3b",
       "modelId": "default",
+      "source": "local",
       "kind": "text",
       "role": "metabolism",
       "host": "LAB-8GB",
@@ -70,8 +68,9 @@
       "notes": "Small high-frequency metabolism model running locally on LAB 8GB."
     },
     {
-      "id": "mistral-nemo-q4",
+      "id": "local/mistral-nemo-q4",
       "modelId": "default",
+      "source": "local",
       "kind": "text",
       "role": "inference-512",
       "host": "LAB-512",
@@ -93,8 +92,9 @@
       "notes": "Large reader model served by LAB 512 over the point-to-point Ethernet cable."
     },
     {
-      "id": "gpt-4.1-mini",
+      "id": "vercel/openai/gpt-4.1-mini",
       "modelId": "openai/gpt-4.1-mini",
+      "source": "vercel",
       "kind": "text",
       "role": "cloud",
       "host": "vercel-ai-gateway",
@@ -106,8 +106,9 @@
       "notes": "OpenAI via Vercel AI Gateway. Custo por uso — nunca default."
     },
     {
-      "id": "claude-haiku-4.5",
+      "id": "vercel/anthropic/claude-haiku-4.5",
       "modelId": "anthropic/claude-haiku-4.5",
+      "source": "vercel",
       "kind": "text",
       "role": "cloud",
       "host": "vercel-ai-gateway",
@@ -119,8 +120,9 @@
       "notes": "Anthropic via Vercel AI Gateway. Custo por uso — nunca default."
     },
     {
-      "id": "gemini-2.5-flash",
+      "id": "vercel/google/gemini-2.5-flash",
       "modelId": "google/gemini-2.5-flash",
+      "source": "vercel",
       "kind": "text",
       "role": "cloud",
       "host": "vercel-ai-gateway",
@@ -134,23 +136,23 @@
   ],
   "prices": {
     "_note": "USD por 1M tokens. Estimativas editáveis — alinhar com o billing da Vercel/Cloudflare. Locais = 0.",
-    "gpt-4.1-mini": {
+    "vercel/openai/gpt-4.1-mini": {
       "input": 0.4,
       "output": 1.6
     },
-    "claude-haiku-4.5": {
+    "vercel/anthropic/claude-haiku-4.5": {
       "input": 1.0,
       "output": 5.0
     },
-    "gemini-2.5-flash": {
+    "vercel/google/gemini-2.5-flash": {
       "input": 0.3,
       "output": 2.5
     },
-    "qwen2.5-3b": {
+    "local/qwen2.5-3b": {
       "input": 0,
       "output": 0
     },
-    "mistral-nemo-q4": {
+    "local/mistral-nemo-q4": {
       "input": 0,
       "output": 0
     }
@@ -159,7 +161,6 @@
     "url": "https://ai-gateway.vercel.sh/v1",
     "key": "vercel-ai-gateway",
     "host": "vercel-ai-gateway",
-    "catalogPassthrough": true,
-    "note": "Qualquer id 'provider/modelo' do catálogo Vercel (316 modelos) roteia direto, sem entrada em models[]. Ids inválidos são rejeitados pelo upstream. Custo: só os com preço em config.prices emitem cost_usd; tokens/compute sempre são logados."
+    "note": "Credencial e endpoint do catálogo Vercel. A rota só aceita IDs presentes no catálogo vigente."
   }
 }

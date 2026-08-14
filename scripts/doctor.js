@@ -19,9 +19,9 @@ await check('mistralrs binary', async () => {
   return (stdout || stderr).trim();
 });
 
-await check('config default model command', async () => {
-  const model = config.models.find((entry) => entry.id === config.defaultModel);
-  return `${config.mistral.command} ${buildMistralArgs(config, model).join(' ')}`;
+await check('configured local model commands', async () => {
+  const locals = config.models.filter((entry) => entry.source === 'local');
+  return locals.map((model) => `${model.id}: ${config.mistral.command} ${buildMistralArgs(config, model).join(' ')}`).join('\n');
 });
 
 await check('mistral health', async () => {

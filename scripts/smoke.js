@@ -3,6 +3,8 @@ import { loadConfig } from '../src/config.js';
 const config = loadConfig();
 const base = process.env.LAB_GATEWAY_URL || config.gateway.publicBaseUrl || `http://127.0.0.1:${config.gateway.port}`;
 const prompt = process.argv.slice(2).join(' ') || 'Reply with exactly: LAB gateway is alive';
+const model = process.env.LAB_MODEL;
+if (!model) throw new Error('LAB_MODEL with a canonical Golden Bridge model id is required');
 
 const response = await fetch(`${base}/v1/chat/completions`, {
   method: 'POST',
@@ -11,7 +13,7 @@ const response = await fetch(`${base}/v1/chat/completions`, {
     'content-type': 'application/json'
   },
   body: JSON.stringify({
-    model: process.env.LAB_MODEL || config.defaultModel,
+    model,
     messages: [{ role: 'user', content: prompt }],
     temperature: 0,
     max_tokens: 64

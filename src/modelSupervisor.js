@@ -139,8 +139,7 @@ export class ModelSupervisor {
   }
 
   activeModel() {
-    return modelById(this.config, this.readState().activeModel) ||
-      modelById(this.config, this.config.defaultModel);
+    return modelById(this.config, this.readState().activeModel) || null;
   }
 
   readState() {

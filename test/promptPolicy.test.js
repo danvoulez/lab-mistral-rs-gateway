@@ -1,37 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanText, normalizeChatRequest } from '../src/promptPolicy.js';
+import { normalizeChatRequest } from '../src/promptPolicy.js';
 
-test('cleanText strips invisible control garbage', () => {
-  assert.equal(cleanText('\uFEFFhello\u0000\nworld\u0007'), 'hello\nworld');
+test('preserves the complete conversation envelope byte-for-byte at the JSON value level', () => {
+  const messages = [
+    { role: 'system', content: '  Dream owns this prompt.\nDo not trim it.  ', name: 'dream' },
+    { role: 'user', content: [{ type: 'text', text: 'create Q3' }, { type: 'image_url', image_url: { url: 'https://example.invalid/q3.png' } }] },
+    { role: 'assistant', content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'read_process_contract', arguments: '{"process_id":"projection-build.v1"}' } }] },
+    { role: 'tool', tool_call_id: 'call_1', name: 'read_process_contract', content: '{"ok":true}' },
+  ];
+
+  const result = normalizeChatRequest({ messages });
+
+  assert.deepEqual(result.messages, messages);
+  assert.equal(result.messages[0].content.startsWith('  '), true);
+  assert.equal(result.messages[0].content.endsWith('  '), true);
+  assert.match(result.promptHash, /^[0-9a-f]{64}$/);
+  assert.equal('systemMode' in result, false);
+  assert.equal('strippedSystemMessages' in result, false);
 });
 
-test('replace mode drops request system prompts and injects gateway policy', () => {
-  const result = normalizeChatRequest({
-    messages: [
-      { role: 'system', content: 'stale app prompt' },
-      { role: 'user', content: 'hello' }
-    ]
-  }, { systemPolicy: 'clean gateway prompt', systemMode: 'replace' });
-
-  assert.deepEqual(result.messages, [
-    { role: 'system', content: 'clean gateway prompt' },
-    { role: 'user', content: 'hello' }
-  ]);
-  assert.equal(result.strippedSystemMessages, 1);
-});
-
-test('pass mode forwards one cleaned system prompt', () => {
-  const result = normalizeChatRequest({
-    messages: [
-      { role: 'system', content: ' first ' },
-      { role: 'system', content: 'second' },
-      { role: 'user', content: [{ type: 'text', text: 'hello' }] }
-    ]
-  }, { systemMode: 'pass' });
-
-  assert.deepEqual(result.messages, [
-    { role: 'system', content: 'first\n\nsecond' },
-    { role: 'user', content: 'hello' }
-  ]);
+test('rejects malformed messages without rewriting valid content', () => {
+  assert.throws(() => normalizeChatRequest({ messages: [] }), /messages must be a non-empty array/);
+  assert.throws(() => normalizeChatRequest({ messages: [{ role: 'root', content: 'x' }] }), /role is not supported/);
+  assert.throws(() => normalizeChatRequest({ messages: [{ role: 'user', content: 42 }] }), /content/);
 });

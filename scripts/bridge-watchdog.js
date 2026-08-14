@@ -25,7 +25,6 @@ await must('gateway health', async () => {
 
 await must('bridge state', async () => {
   const state = await getJson(`${gateway}/ops/bridge`, { authorization: `Bearer ${key}` });
-  if (state.gateway.systemMode !== 'replace') throw new Error(`systemMode=${state.gateway.systemMode}`);
   if (state.state.supervised !== false) throw new Error('LAB 8GB is not gateway-only');
   for (const model of config.models) {
     const upstream = state.upstreams?.find((entry) => entry.id === model.id);

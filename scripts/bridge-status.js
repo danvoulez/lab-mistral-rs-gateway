@@ -19,7 +19,6 @@ const report = {
       endpoint: `${model.upstream.host}:${model.upstream.port}`
     })),
     gateway: gateway,
-    model: config.defaultModel,
     protectedLaunchLabels: config.bridge.protectedLaunchLabels,
     deletedLaunchLabels: config.bridge.deletedLaunchLabels,
     warningLaunchLabels: config.bridge.warningLaunchLabels

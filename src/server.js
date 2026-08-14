@@ -1,21 +1,20 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
-import { loadConfig, modelById, projectPath, readSystemPolicy, upstreamAuthHeaders, upstreamBaseUrl, upstreamEndpoint } from './config.js';
+import { loadConfig, modelById, projectPath, upstreamAuthHeaders, upstreamBaseUrl, upstreamEndpoint } from './config.js';
 import { normalizeChatRequest, HttpInputError } from './promptPolicy.js';
+import { resolveRoute, sourceId } from './routing.js';
 import { ModelSupervisor } from './modelSupervisor.js';
 import { generateCompletion, streamCompletion } from './aiProvider.js';
 import { writeRequestEvent } from './logging.js';
 
 const config = loadConfig();
 const supervisor = new ModelSupervisor(config);
-const systemPolicy = readSystemPolicy(config);
 const startedAt = new Date();
 const counters = {
   requests: 0,
   failures: 0,
   modelSwitches: 0,
-  promptSystemsStripped: 0,
   upstreamFailures: 0,
   lastRequestMs: 0,
   lastUpstreamMs: 0
@@ -57,7 +56,7 @@ async function route(req, res) {
         id: model.id,
         role: model.role,
         host: model.host,
-        kind: model.upstream?.url ? 'cloud' : 'local',
+        source: sourceId(model),
         price_per_1m_tokens_usd: config.prices?.[model.id] || null
       })),
       receipt: 'every chat response carries x-lab-cost-usd + x-lab-compute-ms headers and lab.{client, cost_usd, compute_ms, tokens_total}; per-client aggregates at /ops/costs. Local models charge compute only; cloud models charge compute + money.'
@@ -100,8 +99,6 @@ async function route(req, res) {
       state: supervisor.readState(),
       config: {
         publicBaseUrl: config.gateway.publicBaseUrl,
-        systemMode: config.gateway.systemMode,
-        defaultModel: config.defaultModel,
         models: config.models.map(publicModel)
       },
       counters
@@ -131,21 +128,18 @@ async function route(req, res) {
       '# HELP lab_gateway_model_switches_total Total exclusive model switches.',
       '# TYPE lab_gateway_model_switches_total counter',
       `lab_gateway_model_switches_total ${counters.modelSwitches}`,
-      '# HELP lab_gateway_prompt_systems_stripped_total Request system messages stripped by replace mode.',
-      '# TYPE lab_gateway_prompt_systems_stripped_total counter',
-      `lab_gateway_prompt_systems_stripped_total ${counters.promptSystemsStripped}`
-      ,'# HELP lab_gateway_upstream_failures_total Total upstream mistral.rs failures.'
-      ,'# TYPE lab_gateway_upstream_failures_total counter'
-      ,`lab_gateway_upstream_failures_total ${counters.upstreamFailures}`
-      ,'# HELP lab_gateway_uptime_seconds Gateway process uptime.'
-      ,'# TYPE lab_gateway_uptime_seconds gauge'
-      ,`lab_gateway_uptime_seconds ${Math.floor(process.uptime())}`
-      ,'# HELP lab_gateway_last_request_ms Last completed chat request duration.'
-      ,'# TYPE lab_gateway_last_request_ms gauge'
-      ,`lab_gateway_last_request_ms ${counters.lastRequestMs}`
-      ,'# HELP lab_gateway_last_upstream_ms Last upstream mistral.rs request duration.'
-      ,'# TYPE lab_gateway_last_upstream_ms gauge'
-      ,`lab_gateway_last_upstream_ms ${counters.lastUpstreamMs}`
+      '# HELP lab_gateway_upstream_failures_total Total upstream failures.',
+      '# TYPE lab_gateway_upstream_failures_total counter',
+      `lab_gateway_upstream_failures_total ${counters.upstreamFailures}`,
+      '# HELP lab_gateway_uptime_seconds Gateway process uptime.',
+      '# TYPE lab_gateway_uptime_seconds gauge',
+      `lab_gateway_uptime_seconds ${Math.floor(process.uptime())}`,
+      '# HELP lab_gateway_last_request_ms Last completed chat request duration.',
+      '# TYPE lab_gateway_last_request_ms gauge',
+      `lab_gateway_last_request_ms ${counters.lastRequestMs}`,
+      '# HELP lab_gateway_last_upstream_ms Last upstream request duration.',
+      '# TYPE lab_gateway_last_upstream_ms gauge',
+      `lab_gateway_last_upstream_ms ${counters.lastUpstreamMs}`
     ].join('\n');
     let mistralMetrics = '';
     try {
@@ -173,38 +167,16 @@ async function route(req, res) {
     const body = await readJson(req, config.gateway.maxBodyBytes);
     const requestId = randomUUID();
     const started = Date.now();
-    const requestedModel = body.model || supervisor.readState().activeModel || config.defaultModel;
-    let model = modelById(config, requestedModel);
-    if (!model && config.cloud?.catalogPassthrough && typeof requestedModel === 'string' && requestedModel.includes('/')) {
-      // Vercel AI Gateway catalog passthrough: any "provider/model" id routes
-      // straight to the cloud gateway — the full catalog (316 models) without
-      // config entries. Unknown ids are rejected by the upstream (400/404).
-      // cost_usd is only estimated for ids present in config.prices; usage
-      // and compute are always logged.
-      model = {
-        id: requestedModel,
-        modelId: requestedModel,
-        kind: 'text',
-        role: 'cloud',
-        host: config.cloud.host || 'vercel-ai-gateway',
-        upstream: { url: config.cloud.url, key: config.cloud.key },
-        maxOutputTokens: 1024
-      };
-    }
-    if (!model) throw new HttpInputError(404, `unknown model ${requestedModel}`);
+    const model = resolveRoute(config, body);
 
     const before = supervisor.readState().activeModel;
     await supervisor.ensureModel(model);
     if (before !== model.id) counters.modelSwitches += 1;
 
-    const normalized = normalizeChatRequest(body, {
-      systemPolicy,
-      systemMode: config.gateway.systemMode
-    });
-    counters.promptSystemsStripped += normalized.strippedSystemMessages;
+    const normalized = normalizeChatRequest(body);
 
     if (body.stream) {
-      return handleStreamingChat(res, model, normalized, body);
+      return handleStreamingChat(res, model, normalized, body, { requestId, started, client });
     }
     return handleChat(res, model, normalized, body, { requestId, started, client });
   }
@@ -228,6 +200,7 @@ async function handleChat(res, model, normalized, body, context) {
       duration_ms: Date.now() - context.started,
       error: error.message
     });
+    error.detail = { ...(error.detail || {}), request_id: context.requestId, model: model.id, source: sourceId(model), stage: 'upstream_completion' };
     throw error;
   }
 
@@ -258,6 +231,10 @@ async function handleChat(res, model, normalized, body, context) {
 
   res.setHeader('x-lab-bridge', config.bridge?.name || 'lab-bridge');
   res.setHeader('x-lab-request-id', context.requestId);
+  res.setHeader('x-lab-requested-model', model.id);
+  res.setHeader('x-lab-executed-model', model.id);
+  res.setHeader('x-lab-source', sourceId(model));
+  res.setHeader('x-lab-fallback', 'false');
   res.setHeader('x-lab-prompt-hash', normalized.promptHash);
   if (costUsd != null) res.setHeader('x-lab-cost-usd', String(costUsd));
   res.setHeader('x-lab-compute-ms', String(computeMs));
@@ -269,17 +246,22 @@ async function handleChat(res, model, normalized, body, context) {
     choices: [
       {
         index: 0,
-        message: { role: 'assistant', content: result.text },
+        message: result.message,
         finish_reason: result.finishReason || 'stop'
       }
     ],
     usage: result.usage,
     lab: {
-      routed_model: model.modelId,
+      requested_model: model.id,
+      executed_model: model.id,
+      source: sourceId(model),
+      upstream_provider: model.source === 'vercel' ? model.modelId.split('/')[0] : model.source,
       upstream_model: result.upstream?.model,
+      fallback: false,
+      alias_used: null,
+      request_id: context.requestId,
       upstream_ms: result.upstreamMs,
       prompt_hash: normalized.promptHash,
-      system_mode: normalized.systemMode,
       client: context.client,
       cost_usd: costUsd,
       compute_ms: computeMs,
@@ -299,8 +281,7 @@ async function bridgeState() {
       port: config.gateway.port,
       publicBaseUrl: config.gateway.publicBaseUrl,
       startedAt: startedAt.toISOString(),
-      uptimeSeconds: Math.floor(process.uptime()),
-      systemMode: config.gateway.systemMode
+      uptimeSeconds: Math.floor(process.uptime())
     },
     upstreams,
     state: supervisor.readState(),
@@ -358,17 +339,23 @@ function publicModel(model) {
     host: model.host,
     quantization: model.quantization,
     maxOutputTokens: model.maxOutputTokens,
+    source: model.source,
     upstream: model.upstream
   };
 }
 
-async function handleStreamingChat(res, model, normalized, body) {
+async function handleStreamingChat(res, model, normalized, body, context) {
   const stream = await streamCompletion(config, model, normalized, body);
   res.writeHead(200, {
     'content-type': 'text/event-stream',
     'cache-control': 'no-cache, no-transform',
     connection: 'keep-alive',
-    'x-lab-prompt-hash': normalized.promptHash
+    'x-lab-prompt-hash': normalized.promptHash,
+    'x-lab-request-id': context.requestId,
+    'x-lab-requested-model': model.id,
+    'x-lab-executed-model': model.id,
+    'x-lab-source': sourceId(model),
+    'x-lab-fallback': 'false'
   });
 
   for await (const chunk of stream) {
@@ -494,11 +481,22 @@ function writeJson(res, status, body) {
 
 function writeError(res, error) {
   const status = error.status || 500;
+  const code = error.code || 'internal_error';
+  const actions = {
+    model_required: 'Escolha um modelo da Golden Bridge e envie novamente.',
+    model_unknown: 'Atualize o catálogo e escolha uma opção disponível.',
+    model_capability_mismatch: 'Escolha um modelo certificado para esse recurso.',
+    model_unavailable: 'Escolha outro modelo da Golden Bridge e envie novamente.',
+    model_timeout: 'Escolha outro modelo da Golden Bridge e envie novamente.',
+    route_mismatch: 'Não use esta resposta; informe o request_id ao operador.'
+  };
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(`${JSON.stringify({
     error: {
-      message: error.message || 'internal error',
-      type: status >= 500 ? 'server_error' : 'invalid_request_error'
+      code,
+      message: error.message || 'Erro interno da Golden Bridge.',
+      action: actions[code] || 'Informe o request_id ao operador.',
+      ...(error.detail && typeof error.detail === 'object' ? error.detail : {})
     }
   }, null, 2)}\n`);
 }

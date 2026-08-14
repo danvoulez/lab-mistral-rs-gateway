@@ -20,16 +20,8 @@ export function loadConfig(configPath = process.env.LAB_BLOCK_CONFIG || projectP
   return config;
 }
 
-export function readSystemPolicy(config) {
-  const file = config.gateway.systemPolicyFile;
-  if (!file) return '';
-  const resolved = path.isAbsolute(file) ? file : projectPath(file);
-  if (!fs.existsSync(resolved)) return '';
-  return fs.readFileSync(resolved, 'utf8').trim();
-}
-
 export function modelById(config, modelId) {
-  return config.models.find((model) => model.id === modelId || model.modelId === modelId);
+  return config.models.find((model) => model.id === modelId);
 }
 
 export function upstreamBaseUrl(config, model) {
@@ -66,7 +58,6 @@ function validateConfig(config, resolved) {
   if (!config.gateway || typeof config.gateway.port !== 'number') fail('gateway.port is required');
   if (!config.mistral || typeof config.mistral.port !== 'number') fail('mistral.port is required');
   if (!Array.isArray(config.models) || config.models.length === 0) fail('models must be a non-empty array');
-  if (!config.defaultModel) fail('defaultModel is required');
 
   const ids = new Set();
   for (const model of config.models) {
@@ -78,8 +69,6 @@ function validateConfig(config, resolved) {
       fail(`${model.id}.upstream needs either url or host+port`);
     }
   }
-
-  if (!ids.has(config.defaultModel)) fail(`defaultModel ${config.defaultModel} is not present in models`);
 
   if (config.cloud) {
     if (typeof config.cloud.url !== 'string' || typeof config.cloud.key !== 'string') {
@@ -136,8 +125,6 @@ function applyEnvOverrides(config) {
   if (process.env.LAB_GATEWAY_PORT) config.gateway.port = Number(process.env.LAB_GATEWAY_PORT);
   if (process.env.LAB_GATEWAY_PUBLIC_BASE_URL) config.gateway.publicBaseUrl = process.env.LAB_GATEWAY_PUBLIC_BASE_URL;
   if (process.env.LAB_GATEWAY_KEY) config.gateway.apiKey = process.env.LAB_GATEWAY_KEY;
-  if (process.env.LAB_GATEWAY_SYSTEM_MODE) config.gateway.systemMode = process.env.LAB_GATEWAY_SYSTEM_MODE;
-
   if (process.env.MISTRAL_HOST) config.mistral.host = process.env.MISTRAL_HOST;
   if (process.env.MISTRAL_PORT) config.mistral.port = Number(process.env.MISTRAL_PORT);
   if (process.env.MISTRAL_SUPERVISE) config.mistral.supervise = process.env.MISTRAL_SUPERVISE !== 'false';
