@@ -81,12 +81,13 @@ Only after candidate acceptance:
 
 ```bash
 cd /Users/danvoulez/lab-mistral-rs-gateway
-git switch feat/strict-routing
+candidate_commit=$(git rev-parse feat/strict-routing)
+git switch --detach "$candidate_commit"
 launchctl kickstart -k gui/$(id -u)/local.lab-mistral-gateway
 curl -fsS http://127.0.0.1:8787/health
 ```
 
-Rollback once to the recorded prior commit/branch and prove `/health`; then reactivate the candidate and repeat catalog plus tool acceptance. Do not edit the plist or create a second release system for this change.
+The candidate branch remains checked out by the 8788 worktree, so the active checkout uses its exact commit in detached mode. Rollback once to the recorded prior commit/branch and prove `/health`; then reactivate the candidate commit and repeat catalog plus tool acceptance. Do not edit the plist or create a second release system for this change.
 
 ## Stop candidate
 
