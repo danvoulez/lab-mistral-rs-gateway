@@ -7,9 +7,17 @@ import { resolveRoute, sourceId } from './routing.js';
 import { ModelSupervisor } from './modelSupervisor.js';
 import { generateCompletion, streamCompletion } from './aiProvider.js';
 import { writeRequestEvent } from './logging.js';
+import { createCatalogService, createDreamAgentCertifier } from './catalog.js';
 
 const config = loadConfig();
 const supervisor = new ModelSupervisor(config);
+const catalog = createCatalogService(config, {
+  certify: createDreamAgentCertifier(async (model, probe) => {
+    const body = { ...probe, model: model.id, stream: false };
+    const result = await generateCompletion(config, model, normalizeChatRequest(body), body);
+    return result.message;
+  }),
+});
 const startedAt = new Date();
 const counters = {
   requests: 0,
@@ -52,13 +60,7 @@ async function route(req, res) {
         loopback: 'trusted — tunnel traffic is already Access-authenticated'
       },
       endpoints: ['/health', '/v1/models', '/v1/chat/completions', '/ops/state', '/ops/bridge', '/ops/models/select', '/ops/costs', '/metrics'],
-      models: config.models.map((model) => ({
-        id: model.id,
-        role: model.role,
-        host: model.host,
-        source: sourceId(model),
-        price_per_1m_tokens_usd: config.prices?.[model.id] || null
-      })),
+      modelCatalog: '/v1/models',
       receipt: 'every chat response carries x-lab-cost-usd + x-lab-compute-ms headers and lab.{client, cost_usd, compute_ms, tokens_total}; per-client aggregates at /ops/costs. Local models charge compute only; cloud models charge compute + money.'
     });
   }
@@ -81,16 +83,8 @@ async function route(req, res) {
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/models') {
-    return writeJson(res, 200, {
-      object: 'list',
-      data: config.models.map((model) => ({
-        id: model.id,
-        object: 'model',
-        owned_by: 'lab-8gb',
-        root: model.modelId,
-        quantization: model.quantization
-      }))
-    });
+    res.setHeader('cache-control', 'no-store');
+    return writeJson(res, 200, await catalog.read());
   }
 
   if (req.method === 'GET' && url.pathname === '/ops/state') {
@@ -167,7 +161,9 @@ async function route(req, res) {
     const body = await readJson(req, config.gateway.maxBodyBytes);
     const requestId = randomUUID();
     const started = Date.now();
-    const model = resolveRoute(config, body);
+    const configured = resolveRoute(config, body);
+    await catalog.read();
+    const model = catalog.requireSelectable(configured.id);
 
     const before = supervisor.readState().activeModel;
     await supervisor.ensureModel(model);
