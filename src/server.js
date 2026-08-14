@@ -1,7 +1,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
-import { loadConfig, modelById, projectPath, upstreamAuthHeaders, upstreamBaseUrl, upstreamEndpoint } from './config.js';
+import { loadConfig, modelById, projectPath, upstreamAuthHeaders, upstreamBaseUrl, upstreamHealthEndpoint } from './config.js';
 import { normalizeChatRequest, HttpInputError } from './promptPolicy.js';
 import { resolveRoute, sourceId } from './routing.js';
 import { ModelSupervisor } from './modelSupervisor.js';
@@ -296,7 +296,7 @@ async function upstreamHealth(includeModels = false) {
       if (isCloud) {
         // Cloud gateways (Vercel/Cloudflare AI Gateway) have no /health;
         // an authenticated /models listing doubles as the liveness probe.
-        const response = await fetch(upstreamEndpoint(config, model, 'models'), {
+        const response = await fetch(upstreamHealthEndpoint(config, model), {
           headers: upstreamAuthHeaders(config, model),
           signal: AbortSignal.timeout(5000)
         });

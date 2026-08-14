@@ -20,16 +20,18 @@ export class ModelSupervisor {
       if (
         state.activeModel === model.id &&
         state.supervised === this.config.mistral.supervise &&
-        await this.isMistralHealthy(model)
+        (model.upstream?.url || await this.isMistralHealthy(model))
       ) {
         return state;
       }
 
       if (this.config.mistral.supervise === false) {
-        // Cloud upstreams (Vercel/Cloudflare AI Gateway) fail fast — there is
-        // no process to wait for, just an authenticated endpoint to probe.
-        const startupTimeout = model.upstream?.url ? 15000 : this.config.mistral.startupTimeoutMs;
-        await this.waitForHealthy(model, startupTimeout);
+        // URL upstreams have no local process to supervise. Their catalog
+        // certification and the requested completion are the authoritative
+        // checks; a guessed /models probe can reject an otherwise valid API.
+        if (!model.upstream?.url) {
+          await this.waitForHealthy(model, this.config.mistral.startupTimeoutMs);
+        }
         const externalState = this.writeState({
           activeModel: model.id,
           modelId: model.modelId,
