@@ -132,6 +132,25 @@
       },
       "maxOutputTokens": 1024,
       "notes": "Google via Vercel AI Gateway. Custo por uso — nunca default."
+    },
+    {
+      "id": "cloudflare/@cf/openai/gpt-oss-120b",
+      "modelId": "@cf/openai/gpt-oss-120b",
+      "source": "cloudflare",
+      "kind": "text",
+      "role": "cloud",
+      "host": "cloudflare-ai-gateway",
+      "upstream": {
+        "url": "https://api.cloudflare.com/client/v4/accounts/1f43a14fe5bb62b97e7262c5b6b7c476/ai/v1",
+        "key": "cloudflare-ai-gateway",
+        "gatewayId": "golden-bridge"
+      },
+      "capabilities": {
+        "tools": true,
+        "response_format": true
+      },
+      "maxOutputTokens": 1024,
+      "notes": "GPT-OSS 120B via o AI Gateway golden-bridge. Certificado por envelope vivo; nunca default e sem fallback."
     }
   ],
   "prices": {
@@ -155,7 +174,16 @@
     "local/mistral-nemo-q4": {
       "input": 0,
       "output": 0
+    },
+    "cloudflare/@cf/openai/gpt-oss-120b": {
+      "input": 0.35,
+      "output": 0.75
     }
+  },
+  "cloudflare": {
+    "accountId": "1f43a14fe5bb62b97e7262c5b6b7c476",
+    "gatewayId": "golden-bridge",
+    "key": "cloudflare-ai-gateway"
   },
   "cloud": {
     "url": "https://ai-gateway.vercel.sh/v1",

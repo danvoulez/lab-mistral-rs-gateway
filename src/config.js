@@ -38,6 +38,13 @@ export function upstreamEndpoint(config, model, suffix) {
   return base.endsWith('/v1') ? `${base}/${suffix}` : `${base}/v1/${suffix}`;
 }
 
+export function upstreamHealthEndpoint(config, model) {
+  if (model?.source === 'cloudflare') {
+    return `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.cloudflare.accountId)}/ai/models/search`;
+  }
+  return upstreamEndpoint(config, model, 'models');
+}
+
 // Bearer auth for cloud upstreams. Key material lives in runtime/keys/<name>
 // (chmod 600), never in lab-block.json. Local upstreams return no headers.
 export function upstreamAuthHeaders(config, model) {
